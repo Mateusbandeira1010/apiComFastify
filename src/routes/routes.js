@@ -37,7 +37,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.routes = routes;
-var database_1 = require("./database");
+var database_1 = require("../models/database");
 function routes(fastify) {
     return __awaiter(this, void 0, void 0, function () {
         var _this = this;
