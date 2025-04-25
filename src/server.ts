@@ -10,10 +10,8 @@ fastify.register(routes);
 
 const PORT = process.env.PORT || 3000;
 
-
 const start = async () => {
     try {
-        await fastify.register(routes);
         await fastify.listen({ port: Number(PORT), host: "0.0.0.0" });
         console.log(`Servidor rodando na porta ${PORT}`);
     } catch (err) {
@@ -21,6 +19,5 @@ const start = async () => {
         process.exit(1);
     }
 };
-
 
 start();

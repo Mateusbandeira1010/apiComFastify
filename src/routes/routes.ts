@@ -1,125 +1,81 @@
 import { FastifyInstance } from 'fastify';
 import db from "../models/database";
-import { ninjasSchema, ninjasUpdateSchema } from '../schemas/schema';
+import { hotkeySchema, hotkeyUpdateSchema } from "../schemas/schema";
 
 export async function routes(fastify: FastifyInstance) {
 
-
-    fastify.post('/ninjas', async (req, reply) => {
-        const validateSchema = ninjasSchema.safeParse(req.body);
-
-        if (!validateSchema.success) {
-            return reply.status(400).send({
-                message: "Dados inválidos",
-                errors: validateSchema.error.format(),
-            });
+    // Criar uma nova hotkey
+    fastify.post('/apihotkeys', async (req, reply) => {
+        const validate = hotkeySchema.safeParse(req.body);
+        if (!validate.success) {
+            return reply.status(400).send({ message: "Dados inválidos", errors: validate.error.format() });
         }
 
-        const { nome, rank } = validateSchema.data;
-
+        const { nome, codigo } = validate.data;
         try {
-            const stmt = db.prepare("INSERT INTO ninjas (nome, rank) VALUES (?, ?)");
-            const info = stmt.run(nome, rank);
+            const stmt = db.prepare("INSERT INTO apihtk (nome, codigo) VALUES (?, ?)");
+            const info = stmt.run(nome, codigo);
 
-            return reply.status(201).send({
-                message: "Ninja criado com sucesso",
-                id: info.lastInsertRowid,
-                nome,
-                rank,
-            });
-
-        } catch (error) {
-            console.error('Erro ao criar o ninja:', error);
-            return reply.status(500).send({ message: "Erro interno no servidor" });
+            return reply.status(201).send({ id: info.lastInsertRowid, nome, codigo });
+        } catch (err) {
+            console.error(err);
+            return reply.status(500).send({ message: "Erro ao criar hotkey" });
         }
     });
 
-
-    fastify.get('/ninjas', async (req, reply) => {
-        const stmt = db.prepare("SELECT * FROM ninjas");
-        const ninjas = stmt.all();
-
-        if (ninjas.length === 0) {
-            return reply.status(404).send({ message: "Nenhum ninja foi encontrado" });
-        }
-
-        reply.send(ninjas);
+    // Listar todas as hotkeys
+    fastify.get('/apihotkeys', async (_, reply) => {
+        const hotkeys = db.prepare("SELECT * FROM apihtk").all();
+        reply.send(hotkeys);
     });
 
-    // Buscar Ninja por ID
-    fastify.get('/ninjas/:id', async (req, reply) => {
+    // Buscar hotkey por ID
+    fastify.get('/apihotkeys/:id', async (req, reply) => {
         const { id } = req.params as { id: string };
+        const hotkey = db.prepare("SELECT * FROM apihtk WHERE id = ?").get(id);
 
-        const stmt = db.prepare("SELECT * FROM ninjas WHERE id = ?");
-        const ninja = stmt.get(id);
-
-        if (!ninja) {
-            return reply.status(404).send({ message: 'Ninja não encontrado' });
-        }
-
-        reply.send(ninja);
+        if (!hotkey) return reply.status(404).send({ message: "Hotkey não encontrada" });
+        reply.send(hotkey);
     });
 
-
-    fastify.put('/ninjas/:id', async (req, reply) => {
-        const validateSchema = ninjasUpdateSchema.safeParse(req.body);
-
-        if (!validateSchema.success) {
-            return reply.status(400).send({
-                message: "Dados inválidos",
-                errors: validateSchema.error.format(),
-            });
+    // Atualizar hotkey
+    fastify.put('/apihotkeys/:id', async (req, reply) => {
+        const validate = hotkeyUpdateSchema.safeParse(req.body);
+        if (!validate.success) {
+            return reply.status(400).send({ message: "Dados inválidos", errors: validate.error.format() });
         }
 
-        const { nome, rank } = validateSchema.data;
+        const { nome, codigo } = validate.data;
         const { id } = req.params as { id: string };
 
         try {
-            const stmt = db.prepare("UPDATE ninjas SET nome = ?, rank = ? WHERE id = ?");
-            const result = stmt.run(nome, rank, id);
+            const stmt = db.prepare("UPDATE apihtk SET nome = ?, codigo = ? WHERE id = ?");
+            const result = stmt.run(nome, codigo, id);
 
-            if (result.changes === 0) {
-                return reply.status(404).send({ message: "Ninja não encontrado" });
-            }
-
-            return reply.status(200).send({ message: "Ninja atualizado com sucesso", id, nome, rank });
-
-        } catch (error) {
-            console.error('Erro ao atualizar o ninja:', error);
-            return reply.status(500).send({ message: "Erro interno no servidor" });
+            if (result.changes === 0) return reply.status(404).send({ message: "Hotkey não encontrada" });
+            reply.send({ message: "Hotkey atualizada com sucesso", id, nome, codigo });
+        } catch (err) {
+            console.error(err);
+            return reply.status(500).send({ message: "Erro ao atualizar hotkey" });
         }
     });
 
-    // Deletar Ninja
-    fastify.delete('/ninjas/:id', async (req, reply) => {
+    // Deletar hotkey
+    fastify.delete('/apihotkeys/:id', async (req, reply) => {
         const { id } = req.params as { id: string };
+        const result = db.prepare("DELETE FROM apihtk WHERE id = ?").run(id);
 
-        try {
-            const stmt = db.prepare("DELETE FROM ninjas WHERE id = ?");
-            const result = stmt.run(id);
-
-            if (result.changes === 0) {
-                return reply.status(404).send({ message: "Ninja não encontrado" });
-            }
-
-            reply.send({ message: "Ninja deletado com sucesso" });
-
-        } catch (error) {
-            console.error('Erro ao deletar o ninja:', error);
-            return reply.status(500).send({ message: "Erro interno no servidor" });
-        }
+        if (result.changes === 0) return reply.status(404).send({ message: "Hotkey não encontrada" });
+        reply.send({ message: "Hotkey deletada com sucesso" });
     });
 
+    // Buscar hotkey por nome
+    fastify.get('/apihotkeys/nome/:nome', async (req, reply) => {
+        const { nome } = req.params as { nome: string };
+        const stmt = db.prepare("SELECT * FROM apihtk WHERE nome = ?");
+        const hotkeys = stmt.all(nome);
 
-    fastify.get('/ninjas/rank/:rank', async (req, reply) => {
-        const { rank } = req.params as { rank: string };
-        const stmt = db.prepare("SELECT * FROM ninjas WHERE rank = ?");
-        const ninjas = stmt.all(rank);
-
-        if (ninjas.length === 0) {
-            return reply.status(404).send({ message: "Nenhum ninja encontrado com esse ranks" });
-        }
-
-        reply.send(ninjas);
+        if (hotkeys.length === 0) return reply.status(404).send({ message: "Nenhuma hotkey encontrada com esse nome" });
+        reply.send(hotkeys);
     });
 }
